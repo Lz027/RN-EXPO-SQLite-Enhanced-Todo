@@ -1,4 +1,4 @@
-# Name:Ahmed Baghni
+# By Ahmed Baghni
 
 # Welcome to your Expo app 👋
 
