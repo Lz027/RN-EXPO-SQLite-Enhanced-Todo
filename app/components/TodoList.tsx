@@ -9,8 +9,10 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+
 import {
     Todo,
+    TodoStatus,
     addTodo,
     deleteTodo,
     getTodos,
@@ -21,6 +23,7 @@ import {
 export default function TodoList() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [text, setText] = useState("");
+  const [filter, setFilter] = useState<TodoStatus>("all");
   const [editingId, setEditingId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -34,8 +37,12 @@ export default function TodoList() {
     })();
   }, []);
 
+  useEffect(() => {
+    reload();
+  }, [filter]);
+
   async function reload() {
-    const data = await getTodos();
+    const data = await getTodos(filter);
     setTodos(data);
   }
 
@@ -92,6 +99,11 @@ export default function TodoList() {
       <View style={styles.itemRow}>
         <TouchableOpacity onPress={() => handleToggle(item)} style={{ flex: 1 }}>
           <Text style={[styles.itemText, item.done ? styles.doneText : null]}>{item.text}</Text>
+          {item.finished_at && (
+            <Text style={styles.finishedAtText}>
+              Finished: {new Date(item.finished_at).toLocaleDateString()}
+            </Text>
+          )}
         </TouchableOpacity>
         <Button title="Edit" onPress={() => startEdit(item)} />
         <View style={{ width: 8 }} />
@@ -113,6 +125,24 @@ export default function TodoList() {
         <Button title={editingId ? "Simpan" : "Tambah"} onPress={handleAddOrUpdate} />
       </View>
 
+      <View style={styles.filterRow}>
+        <FilterButton
+          title="All"
+          selected={filter === "all"}
+          onPress={() => setFilter("all")}
+        />
+        <FilterButton
+          title="Done"
+          selected={filter === "done"}
+          onPress={() => setFilter("done")}
+        />
+        <FilterButton
+          title="Undone"
+          selected={filter === "undone"}
+          onPress={() => setFilter("undone")}
+        />
+      </View>
+
       <FlatList
         data={todos}
         keyExtractor={(i) => String(i.id)}
@@ -131,4 +161,23 @@ const styles = StyleSheet.create({
   itemRow: { flexDirection: "row", alignItems: "center", paddingVertical: 8 },
   itemText: { fontSize: 16 },
   doneText: { textDecorationLine: "line-through", color: "#999" },
+  finishedAtText: { fontSize: 12, color: "#666" },
+  filterRow: { flexDirection: "row", justifyContent: "space-around", marginBottom: 12 },
+  filterButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15, borderWidth: 1, borderColor: "#ccc" },
+  filterButtonSelected: { backgroundColor: "#007AFF" },
+  filterButtonText: { color: "#007AFF" },
+  filterButtonTextSelected: { color: "#fff" },
 });
+
+function FilterButton({ title, selected, onPress }: { title: string, selected: boolean, onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      style={[styles.filterButton, selected && styles.filterButtonSelected]}
+      onPress={onPress}
+    >
+      <Text style={[styles.filterButtonText, selected && styles.filterButtonTextSelected]}>
+        {title}
+      </Text>
+    </TouchableOpacity>
+  );
+}

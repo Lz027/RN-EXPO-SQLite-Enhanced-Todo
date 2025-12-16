@@ -14,6 +14,7 @@ export type Todo = {
   text: string;
   done: number;       
   created_at?: string;
+  finished_at?: string;
 };
 
 /** Create table */
@@ -28,12 +29,39 @@ export async function initDB(): Promise<void> {
       created_at DATETIME DEFAULT (datetime('now'))
     );
   `);
+
+  // Migration: Add finished_at column if it doesn't exist
+  const columns = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(todos);"
+  );
+  const hasFinishedAt = columns.some((col) => col.name === "finished_at");
+
+  if (!hasFinishedAt) {
+    await db.execAsync(`
+      ALTER TABLE todos ADD COLUMN finished_at DATETIME;
+    `);
+  }
 }
 
 /** Get all todos */
-export async function getTodos(): Promise<Todo[]> {
+eexport type TodoStatus = "all" | "done" | "undone";
+
+/** Get all todos with optional status filter */
+export async function getTodos(status: TodoStatus = "all"): Promise<Todo[]> {
   const db = await getDB();
-  const rows = await db.getAllAsync<Todo>("SELECT * FROM todos ORDER BY id DESC;");
+  let whereClause = "";
+  let params: any[] = [];
+
+  if (status === "done") {
+    whereClause = "WHERE done = 1";
+  } else if (status === "undone") {
+    whereClause = "WHERE done = 0";
+  }
+
+  const rows = await db.getAllAsync<Todo>(
+    `SELECT * FROM todos ${whereClause} ORDER BY id DESC;`,
+    params
+  );
   return rows;
 }
 
@@ -67,6 +95,12 @@ export async function updateTodo(
   if (fields.done !== undefined) {
     sets.push("done = ?");
     params.push(fields.done);
+
+    if (fields.done === 1) {
+      sets.push("finished_at = datetime('now')");
+    } else if (fields.done === 0) {
+      sets.push("finished_at = NULL");
+    }
   }
 
   if (sets.length === 0) return;
